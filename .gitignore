@@ -1,0 +1,36 @@
+# Dependencies
+node_modules/
+/.pnp
+.pnp.js
+
+# Build & Runtime
+/.next/
+/.open-next/
+/.wrangler/
+/out/
+/build/
+/dist/
+/coverage/
+*.tsbuildinfo
+next-env.d.ts
+
+# Environment & Secrets
+.env
+.env*
+!.env.example
+*.pem
+*.key
+
+# Local Migration / Export Scratch
+tmp-export/
+/media/
+
+# Tests & Debug
+/test-results/
+/playwright-report/
+/blob-report/
+/playwright/.cache/
+npm-debug.log*
+yarn-debug.log*
+pnpm-debug.log*
+.DS_Store

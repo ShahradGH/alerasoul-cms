@@ -1,0 +1,46 @@
+import type { CollectionConfig } from 'payload'
+
+export const ContactSubmissions: CollectionConfig = {
+  slug: 'contact-submissions',
+  admin: {
+    useAsTitle: 'email',
+    defaultColumns: ['name', 'email', 'subject', 'turnstileVerified', 'submittedAt'],
+  },
+  access: {
+    read: ({ req }) => Boolean(req.user),
+    create: ({ req }) => Boolean(req.user),
+    update: ({ req }) => Boolean(req.user),
+    delete: ({ req }) => Boolean(req.user),
+  },
+  fields: [
+    {
+      name: 'name',
+      type: 'text',
+      required: true,
+    },
+    {
+      name: 'email',
+      type: 'email',
+      required: true,
+    },
+    {
+      name: 'subject',
+      type: 'text',
+    },
+    {
+      name: 'message',
+      type: 'textarea',
+      required: true,
+    },
+    {
+      name: 'turnstileVerified',
+      type: 'checkbox',
+      defaultValue: false,
+      required: true,
+    },
+    {
+      name: 'submittedAt',
+      type: 'date',
+    },
+  ],
+}

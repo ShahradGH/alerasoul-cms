@@ -1,0 +1,39 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "alerasoul-cms",
+  "main": "src/worker.ts",
+  "compatibility_date": "2026-10-01",
+  "compatibility_flags": [
+    "nodejs_compat",
+    "global_fetch_strictly_public"
+  ],
+  "workers_dev": false,
+  "preview_urls": false,
+  "assets": {
+    "directory": ".open-next/assets",
+    "binding": "ASSETS"
+  },
+  "d1_databases": [
+    {
+      "binding": "D1",
+      "database_id": "88d4a680-41cb-4e08-9aa4-c329f8e2fb3d",
+      "database_name": "alerasoul_cms",
+      "remote": true
+    }
+  ],
+  "r2_buckets": [
+    {
+      "binding": "R2",
+      "bucket_name": "alerasoul-cms-media"
+    }
+  ],
+  "triggers": {
+    "crons": [
+      "*/15 * * * *"
+    ]
+  },
+  "vars": {
+    "NEXT_PUBLIC_SITE_URL": "https://alerasoul.net",
+    "NEXT_PUBLIC_TURNSTILE_SITE_KEY": "0x4AAAAAAGNa8fdZt_PBm7AX"
+  }
+}

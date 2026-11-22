@@ -1,0 +1,109 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://alerasoul.net/schemas/publishing-api-contract.schema.json",
+  "title": "Payload CMS v3 Publishing API Contract (alerasoul.net)",
+  "description": "Canonical REST contract between sovereign publishers (e.g. payloadPublisher.js) and alerasoul-cms on Cloudflare Workers + D1 + R2.",
+  "type": "object",
+  "definitions": {
+    "AuthHeader": {
+      "type": "string",
+      "pattern": "^users API-Key [A-Za-z0-9_-]+$",
+      "description": "Payload v3 API-Key authentication header using a scoped Users document API key."
+    },
+    "Category": {
+      "type": "object",
+      "required": ["id", "name", "slug"],
+      "properties": {
+        "id": { "type": "integer", "enum": [1, 2, 3] },
+        "name": { "type": "string" },
+        "slug": {
+          "type": "string",
+          "enum": ["enterprise-architecture", "personal", "psychology"]
+        }
+      }
+    },
+    "CreateMediaResponse": {
+      "type": "object",
+      "required": ["doc"],
+      "properties": {
+        "message": { "type": "string" },
+        "doc": {
+          "type": "object",
+          "required": ["id", "alt", "filename", "mimeType", "url"],
+          "properties": {
+            "id": { "type": "integer" },
+            "alt": { "type": "string" },
+            "caption": { "type": ["string", "null"] },
+            "filename": { "type": "string" },
+            "prefix": { "type": ["string", "null"] },
+            "mimeType": { "type": "string" },
+            "filesize": { "type": "integer" },
+            "url": { "type": "string" }
+          }
+        }
+      }
+    },
+    "PostUpsertRequest": {
+      "type": "object",
+      "required": ["title", "slug", "status"],
+      "additionalProperties": false,
+      "properties": {
+        "title": { "type": "string", "minLength": 1 },
+        "slug": {
+          "type": "string",
+          "pattern": "^(?!0\\d{2}-)(?!idea-\\d+-)[a-z0-9]+(?:-[a-z0-9]+)*$"
+        },
+        "status": {
+          "type": "string",
+          "enum": ["draft", "scheduled", "published"]
+        },
+        "publishedAt": {
+          "type": ["string", "null"],
+          "format": "date-time"
+        },
+        "excerpt": { "type": "string" },
+        "legacyHtml": { "type": "string" },
+        "content": { "type": "object" },
+        "categories": {
+          "type": "array",
+          "items": { "type": "integer" },
+          "minItems": 1
+        },
+        "tags": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["tag"],
+            "properties": {
+              "tag": { "type": "string", "minLength": 1 }
+            }
+          }
+        },
+        "featuredImage": { "type": ["integer", "null"] },
+        "githubRepoUrl": {
+          "type": ["string", "null"],
+          "pattern": "^https://github\\.com/[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$"
+        },
+        "seo": {
+          "type": "object",
+          "properties": {
+            "metaTitle": { "type": "string" },
+            "metaDescription": { "type": "string" }
+          }
+        },
+        "readingTimeMinutes": { "type": "integer", "minimum": 1 }
+      }
+    },
+    "ContactRequest": {
+      "type": "object",
+      "required": ["name", "email", "message", "turnstileToken"],
+      "properties": {
+        "name": { "type": "string", "minLength": 1 },
+        "email": { "type": "string", "format": "email" },
+        "subject": { "type": "string" },
+        "message": { "type": "string", "minLength": 1 },
+        "turnstileToken": { "type": "string", "minLength": 1 }
+      }
+    }
+  }
+}
