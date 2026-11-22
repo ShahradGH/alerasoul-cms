@@ -18,22 +18,27 @@ Official **Payload CMS v3** edge publishing platform for [`alerasoul.net`](https
   - Canonical `www` to apex `301` redirect and Silo sequence prefix `301` redirects.
   - Sensitive probe path blocking (`403`) and zero-404 `/wp-content/uploads/*` asset serving directly from Cloudflare R2.
   - Cloudflare Workers Cron (`*/15 * * * *`) promoting `scheduled` posts whose `publishedAt <= now()` to `published`.
+- **Cloudflare Zero Trust Access & Turnstile**:
+  - `wrangler.jsonc` enforces `"workers_dev": false` and `"preview_urls": false` so unauthenticated `*.workers.dev` endpoints are never exposed.
+  - Interactive `/admin/*` management routes are protected behind **Cloudflare Zero Trust Access** (Entra ID OIDC), while public articles, `/feed/`, and scoped `Authorization: users API-Key` REST publishing routes remain directly reachable.
+  - Contact submissions (`POST /api/contact`) enforce server-side **Cloudflare Turnstile** verification via `TURNSTILE_SECRET_KEY`.
 - **Portability Escape Hatch**:
-  - Ships a 12-line `Dockerfile` (`# PORTABILITY_ESCAPE_HATCH_ONLY`) for portable Node.js container execution.
-  - Enforces `workers_dev = false` and `preview_urls = false` in `wrangler.jsonc`.
+  - Ships a 12-line `Dockerfile` (`# PORTABILITY_ESCAPE_HATCH_ONLY — Live production runs on Cloudflare Workers/PaaS`) for portable Node.js container execution.
+  - Automated CI verification and OpenNext/Wrangler deployment live in [`.github/workflows/deploy.yml`](.github/workflows/deploy.yml).
 
 ## Documentation
 
 - Publishing REST Contract: [`docs/PUBLISHING-API-CONTRACT.md`](docs/PUBLISHING-API-CONTRACT.md)
 - Machine-Readable Schema: [`docs/publishing-api-contract.schema.json`](docs/publishing-api-contract.schema.json)
 
-## Verification & Build
+## Verification, Build & Deployment
 
 ```bash
 pnpm install
 pnpm run test:int
 pnpm exec tsc --noEmit
 pnpm exec opennextjs-cloudflare build
+pnpm run deploy:app   # runs opennextjs-cloudflare build & deploy (Wrangler)
 ```
 
 ## Licence

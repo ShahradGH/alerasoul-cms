@@ -1,0 +1,50 @@
+name: Verify & Deploy alerasoul-cms (Cloudflare Workers)
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  verify-and-deploy:
+    name: Typecheck, Integration Suite & Cloudflare Worker Deploy
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7.0.1
+
+      - name: Setup Node.js 24 LTS
+        uses: actions/setup-node@v7.1.0
+        with:
+          node-version: '24'
+
+      - name: Enable Corepack and pnpm
+        run: corepack enable
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: TypeScript typecheck
+        run: pnpm exec tsc --noEmit
+
+      - name: Run integration, edge-middleware, Turnstile & Zero-Leak tests
+        run: pnpm run test:int
+
+      - name: Deploy Cloudflare Worker (OpenNext + Wrangler)
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          if [ -n "$CLOUDFLARE_API_TOKEN" ]; then
+            pnpm run deploy:app
+          else
+            echo "CLOUDFLARE_API_TOKEN not configured; skipping deploy."
+          fi
