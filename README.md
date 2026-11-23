@@ -1,6 +1,23 @@
 # alerasoul-cms
 
-Official **Payload CMS v3** edge publishing platform for [`alerasoul.net`](https://alerasoul.net) running on **Cloudflare Workers**, **Cloudflare D1**, **Cloudflare R2**, and **Cloudflare Turnstile**.
+Official **Payload CMS v3** edge publishing platform for [`alerasoul.net`](https://alerasoul.net) running on **Cloudflare Workers**, **Cloudflare D1**, **Cloudflare R2**, **Resend Forge**, and **Cloudflare Turnstile**.
+
+## Visual Topology
+
+```mermaid
+flowchart TD
+    Readers["Public Readers (alerasoul.net & www 301)"] --> EdgeWorker["Cloudflare Worker (alerasoul-cms OpenNextJS, eu-west-2, workers_dev=false)"]
+    Admin["Author Browser (/admin)"] --> Access["Cloudflare Zero Trust Access (Entra ID OIDC)"] --> EdgeWorker
+    Studio["Sovereign Studio (Authorization: users API-Key)"] --> EdgeWorker
+
+    EdgeWorker --> Cache["Edge Micro-Cache (300s Guest HTML, Cached 308 Redirects, Clean Sitemap)"]
+    EdgeWorker --> D1["Cloudflare D1 (alerasoul_cms SQLite)"]
+    EdgeWorker --> R2["Cloudflare R2 (alerasoul-cms-media & /wp-content/uploads/*)"]
+    EdgeWorker --> Turnstile["Cloudflare Turnstile (/api/contact Verification)"]
+    EdgeWorker --> Resend["Resend Forge HTTP API (eu-west-1, Microsoft 365 MX Untouched)"]
+    Cron["Workers Cron (*/15 * * * * Auto-Publish Scheduled Posts)"] --> EdgeWorker
+    CI["GitHub Actions deploy.yml (Pinned pnpm@10.28.2, Tests, tsc, Wrangler Deploy)"] --> EdgeWorker
+```
 
 ## Architecture & Capabilities
 
@@ -14,17 +31,17 @@ Official **Payload CMS v3** edge publishing platform for [`alerasoul.net`](https
 - **Dark Azure Editorial UI & RSS**:
   - Responsive Dark (`#0a1128`) and Light (`#f8fafc`) Azure theme tokens (`--sov-bg`, `--sov-surface`, `--sov-text`, `--sov-cyan`, `--sov-sky`) using `Inter` and `JetBrains Mono`.
   - Automatic sticky Table of Contents, code block copy buttons, diagram lightbox zoom, `TechArticle` JSON-LD schema, LinkedIn sharing bar, GitHub Repository CTA cards, category archives (`/category/<slug>/`), and WordPress-compatible RSS 2.0 XML (`/feed/`).
-- **Edge Middleware & Scheduled Auto-Publisher**:
-  - Canonical `www` to apex `301` redirect and Silo sequence prefix `301` redirects.
+- **Edge Middleware, Caching & Scheduled Auto-Publisher**:
+  - Canonical `www` to apex `301` redirect, clean non-trailing-slash XML sitemap (avoiding `308` hops), edge-cached `308` Silo sequence/legacy redirects, and a `300s` guest HTML edge micro-cache.
   - Sensitive probe path blocking (`403`) and zero-404 `/wp-content/uploads/*` asset serving directly from Cloudflare R2.
   - Cloudflare Workers Cron (`*/15 * * * *`) promoting `scheduled` posts whose `publishedAt <= now()` to `published`.
-- **Cloudflare Zero Trust Access & Turnstile**:
-  - `wrangler.jsonc` enforces `"workers_dev": false` and `"preview_urls": false` so unauthenticated `*.workers.dev` endpoints are never exposed.
+- **Cloudflare Zero Trust Access, Turnstile & Transactional Email**:
+  - `wrangler.jsonc` enforces `"workers_dev": false` and `"preview_urls": false` (pinned `aws:eu-west-2`) so unauthenticated `*.workers.dev` endpoints are never exposed.
   - Interactive `/admin/*` management routes are protected behind **Cloudflare Zero Trust Access** (Entra ID OIDC), while public articles, `/feed/`, and scoped `Authorization: users API-Key` REST publishing routes remain directly reachable.
-  - Contact submissions (`POST /api/contact`) enforce server-side **Cloudflare Turnstile** verification via `TURNSTILE_SECRET_KEY`.
-- **Portability Escape Hatch**:
+  - Contact submissions (`POST /api/contact`) enforce server-side **Cloudflare Turnstile** verification via `TURNSTILE_SECRET_KEY` and dispatch notifications via **Resend** (`RESEND_API_KEY` in `eu-west-1`), preserving Microsoft 365 root MX/SPF/Autodiscover DNS records untouched.
+- **Portability Escape Hatch & CI/CD**:
   - Ships a 12-line `Dockerfile` (`# PORTABILITY_ESCAPE_HATCH_ONLY — Live production runs on Cloudflare Workers/PaaS`) for portable Node.js container execution.
-  - Automated CI verification and OpenNext/Wrangler deployment live in [`.github/workflows/deploy.yml`](.github/workflows/deploy.yml).
+  - Automated CI verification (pinned `pnpm@10.28.2`, `tsc`, integration tests) and OpenNext/Wrangler deployment run via [`.github/workflows/deploy.yml`](.github/workflows/deploy.yml).
 
 ## Documentation
 
