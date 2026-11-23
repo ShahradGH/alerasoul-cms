@@ -11,6 +11,11 @@ interface __BaseEnv_CloudflareEnv {
 	TURNSTILE_SECRET_KEY: string;
 	CLOUDFLARE_ACCOUNT_ID: string;
 	CLOUDFLARE_D1_ID: string;
+	ZERO_LEAK_BLOCKLIST?: string;
+	RESEND_API_KEY?: string;
+	DISCORD_WEBHOOK_OPS_DIGEST?: string;
+	CONTACT_FROM_EMAIL?: string;
+	CONTACT_TO_EMAIL?: string;
 }
 declare namespace Cloudflare {
 	interface GlobalProps {
@@ -23,7 +28,7 @@ type StringifyValues<EnvType extends Record<string, unknown>> = {
 	[Binding in keyof EnvType]: EnvType[Binding] extends string ? EnvType[Binding] : string;
 };
 declare namespace NodeJS {
-	interface ProcessEnv extends StringifyValues<Pick<Cloudflare.Env, "PAYLOAD_SECRET" | "NEXT_PUBLIC_SITE_URL" | "NEXT_PUBLIC_TURNSTILE_SITE_KEY" | "TURNSTILE_SECRET_KEY" | "CLOUDFLARE_ACCOUNT_ID" | "CLOUDFLARE_D1_ID">> {}
+	interface ProcessEnv extends StringifyValues<Pick<Cloudflare.Env, "PAYLOAD_SECRET" | "NEXT_PUBLIC_SITE_URL" | "NEXT_PUBLIC_TURNSTILE_SITE_KEY" | "TURNSTILE_SECRET_KEY" | "CLOUDFLARE_ACCOUNT_ID" | "CLOUDFLARE_D1_ID">>, Partial<StringifyValues<Pick<Cloudflare.Env, "ZERO_LEAK_BLOCKLIST" | "RESEND_API_KEY" | "DISCORD_WEBHOOK_OPS_DIGEST" | "CONTACT_FROM_EMAIL" | "CONTACT_TO_EMAIL">>> {}
 }
 
 // Begin runtime types

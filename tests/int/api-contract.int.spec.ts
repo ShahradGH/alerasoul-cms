@@ -4,13 +4,16 @@ import path from 'node:path'
 import { buildRssFeedXml } from '@/lib/rss'
 import { renderLexicalToHtml } from '@/lib/lexical-render'
 import { resolveMediaPublicUrl } from '@/lib/media-url'
+import { buildRobotsMetadata, buildSitemapEntries } from '@/lib/seo'
+import { slugifyTag } from '@/lib/tags'
 
-describe('Publishing Contract, RSS 2.0, Lexical & PaaS Guardrails', () => {
-  it('enforces workers_dev = false, preview_urls = false, and cron trigger in wrangler.jsonc', () => {
+describe('Publishing Contract, RSS 2.0, Lexical, SEO & PaaS Guardrails', () => {
+  it('enforces workers_dev = false, preview_urls = false, placement, and cron trigger in wrangler.jsonc', () => {
     const raw = fs.readFileSync(path.resolve(process.cwd(), 'wrangler.jsonc'), 'utf8')
     const cfg = JSON.parse(raw)
     expect(cfg.workers_dev).toBe(false)
     expect(cfg.preview_urls).toBe(false)
+    expect(cfg.placement?.region).toBe('aws:eu-west-2')
     expect(cfg.triggers?.crons).toContain('*/15 * * * *')
     expect(cfg.d1_databases?.[0]?.database_name).toBe('alerasoul_cms')
     expect(cfg.r2_buckets?.[0]?.bucket_name).toBe('alerasoul-cms-media')
@@ -62,7 +65,7 @@ describe('Publishing Contract, RSS 2.0, Lexical & PaaS Guardrails', () => {
     expect(xml).toContain(']]]]><![CDATA[>')
   })
 
-  it('renders Lexical AST and resolves legacy vs Payload media URLs', () => {
+  it('renders Lexical AST with uploads, horizontal rules, tables, and bitmask formats safely', () => {
     const html = renderLexicalToHtml({
       root: {
         type: 'root',
@@ -73,6 +76,56 @@ describe('Publishing Contract, RSS 2.0, Lexical & PaaS Guardrails', () => {
             children: [
               { type: 'text', text: 'Run ' },
               { type: 'text', text: 'wrangler', format: 16 },
+              { type: 'text', text: ' bold-underline', format: 1 | 8 },
+              { type: 'text', text: ' deprecated', format: 4 },
+            ],
+          },
+          { type: 'horizontalrule' },
+          {
+            type: 'upload',
+            relationTo: 'media',
+            value: {
+              filename: 'stencil-v2.png',
+              alt: 'Azure <Hub> Topology',
+              caption: 'Control & Data Plane',
+              width: 1200,
+              height: 675,
+            },
+          },
+          {
+            type: 'table',
+            children: [
+              {
+                type: 'tablerow',
+                children: [
+                  {
+                    type: 'tablecell',
+                    headerState: 1,
+                    children: [{ type: 'text', text: 'Plane' }],
+                  },
+                  {
+                    type: 'tablecell',
+                    headerState: 1,
+                    children: [{ type: 'text', text: 'Control' }],
+                  },
+                ],
+              },
+              {
+                type: 'tablerow',
+                children: [
+                  {
+                    type: 'tablecell',
+                    headerState: 0,
+                    children: [{ type: 'text', text: 'Edge' }],
+                  },
+                  {
+                    type: 'tablecell',
+                    headerState: 0,
+                    colSpan: 1,
+                    children: [{ type: 'text', text: 'Zero Trust <Access>' }],
+                  },
+                ],
+              },
             ],
           },
         ],
@@ -80,6 +133,15 @@ describe('Publishing Contract, RSS 2.0, Lexical & PaaS Guardrails', () => {
     })
     expect(html).toContain('<h2 class="sov-article-heading">Overview</h2>')
     expect(html).toContain('<code class="sov-inline-code">wrangler</code>')
+    expect(html).toContain('<u><strong> bold-underline</strong></u>')
+    expect(html).toContain('<s> deprecated</s>')
+    expect(html).toContain('<hr />')
+    expect(html).toContain(
+      '<figure class="sov-media-figure"><img src="/api/media/file/stencil-v2.png" alt="Azure &lt;Hub&gt; Topology" width="1200" height="675" loading="lazy" /><figcaption>Control &amp; Data Plane</figcaption></figure>',
+    )
+    expect(html).toContain(
+      '<div class="sovereign-table-wrap"><table><thead><tr><th>Plane</th><th>Control</th></tr></thead><tbody><tr><td>Edge</td><td>Zero Trust &lt;Access&gt;</td></tr></tbody></table></div>',
+    )
 
     expect(
       resolveMediaPublicUrl({
@@ -88,5 +150,35 @@ describe('Publishing Contract, RSS 2.0, Lexical & PaaS Guardrails', () => {
       }),
     ).toBe('/wp-content/uploads/2023/08/logo.png')
     expect(resolveMediaPublicUrl({ filename: 'new-stencil.png' })).toBe('/api/media/file/new-stencil.png')
+  })
+
+  it('builds deterministic sitemap entries, robots rules, and tag slugs', () => {
+    expect(slugifyTag('AI Control Planes')).toBe('ai-control-planes')
+    expect(slugifyTag('Enterprise Architecture')).toBe('enterprise-architecture')
+
+    const entries = buildSitemapEntries({
+      posts: [{ slug: 'zero-trust-edge', publishedAt: '2026-11-22T09:00:00.000Z' }],
+      pages: [{ slug: 'about', updatedAt: '2026-11-20T08:00:00.000Z' }],
+      categories: [{ slug: 'enterprise-architecture' }],
+      tags: ['AI Control Planes', 'Azure'],
+    })
+    const urls = entries.map((e) => e.url)
+    expect(urls).toContain('https://alerasoul.net/')
+    expect(urls).toContain('https://alerasoul.net/contact/')
+    expect(urls).toContain('https://alerasoul.net/zero-trust-edge/')
+    expect(urls).toContain('https://alerasoul.net/about/')
+    expect(urls).toContain('https://alerasoul.net/category/enterprise-architecture/')
+    expect(urls).toContain('https://alerasoul.net/tag/ai-control-planes/')
+    expect(urls).toContain('https://alerasoul.net/tag/azure/')
+
+    const robots = buildRobotsMetadata()
+    expect(robots.sitemap).toBe('https://alerasoul.net/sitemap.xml')
+    expect(robots.rules).toEqual([
+      {
+        userAgent: '*',
+        allow: '/',
+        disallow: ['/admin', '/admin/', '/api/'],
+      },
+    ])
   })
 })

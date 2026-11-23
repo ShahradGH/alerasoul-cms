@@ -1,6 +1,7 @@
 import Link from 'next/link'
 import React from 'react'
 import { formatUtcEditorialDate, resolveMediaPublicUrl, type MediaLike } from '@/lib/media-url'
+import { slugifyTag } from '@/lib/tags'
 
 export interface PostCardDoc {
   id: number | string
@@ -13,6 +14,7 @@ export interface PostCardDoc {
   githubRepoUrl?: string | null
   featuredImage?: MediaLike | number | null
   categories?: Array<{ id: number | string; name?: string | null; slug?: string | null } | number> | null
+  tags?: Array<{ id?: string | null; tag: string }> | null
 }
 
 export function PostCard({ post }: { post: PostCardDoc }) {
@@ -22,6 +24,9 @@ export function PostCard({ post }: { post: PostCardDoc }) {
         (c): c is { id: number | string; name?: string | null; slug?: string | null } =>
           typeof c === 'object' && c !== null,
       )
+    : []
+  const tags = Array.isArray(post.tags)
+    ? post.tags.filter((t): t is { id?: string | null; tag: string } => Boolean(t?.tag && slugifyTag(t.tag)))
     : []
   const formattedDate = formatUtcEditorialDate(post.publishedAt || post.createdAt)
 
@@ -51,6 +56,19 @@ export function PostCard({ post }: { post: PostCardDoc }) {
           <Link href={`/${post.slug}/`}>{post.title}</Link>
         </h2>
         {post.excerpt && <p className="sov-card-excerpt">{post.excerpt}</p>}
+        {tags.length > 0 && (
+          <div className="sov-tag-list" aria-label="Post Tags">
+            {tags.slice(0, 4).map((item, idx) => (
+              <Link
+                key={item.id || `${slugifyTag(item.tag)}-${idx}`}
+                href={`/tag/${slugifyTag(item.tag)}/`}
+                className="sov-tag-pill"
+              >
+                #{item.tag}
+              </Link>
+            ))}
+          </div>
+        )}
         <div className="sov-card-actions">
           <Link href={`/${post.slug}/`} className="sov-read-more">
             Read Advisory &rarr;

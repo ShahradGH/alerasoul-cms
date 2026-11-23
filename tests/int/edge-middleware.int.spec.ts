@@ -14,15 +14,29 @@ describe('Edge Middleware (Caddyfile Replacement)', () => {
     expect(res!.headers.get('location')).toBe('https://alerasoul.net/about/?ref=nav')
   })
 
-  it('redirects Silo numeric prefix ^/00[1-9]-(.+)$ with 301', () => {
-    const res = evaluateEdgeRedirectOrBlock(
+  it('redirects Silo numeric prefix ^/0\\d{2}-(.+)$ (001 through 099) with 301', () => {
+    const res1 = evaluateEdgeRedirectOrBlock(
       new URL('https://alerasoul.net/001-authority-before-capability-enterprise-agent-identity-graph/'),
     )
-    expect(res).not.toBeNull()
-    expect(res!.status).toBe(301)
-    expect(res!.headers.get('location')).toBe(
+    expect(res1).not.toBeNull()
+    expect(res1!.status).toBe(301)
+    expect(res1!.headers.get('location')).toBe(
       'https://alerasoul.net/authority-before-capability-enterprise-agent-identity-graph/',
     )
+
+    const res12 = evaluateEdgeRedirectOrBlock(
+      new URL('https://alerasoul.net/012-sample-redirect?utm_source=linkedin'),
+    )
+    expect(res12).not.toBeNull()
+    expect(res12!.status).toBe(301)
+    expect(res12!.headers.get('location')).toBe('https://alerasoul.net/sample-redirect?utm_source=linkedin')
+
+    const res99 = evaluateEdgeRedirectOrBlock(
+      new URL('https://alerasoul.net/099-sovereign-control-plane/'),
+    )
+    expect(res99).not.toBeNull()
+    expect(res99!.status).toBe(301)
+    expect(res99!.headers.get('location')).toBe('https://alerasoul.net/sovereign-control-plane/')
   })
 
   it('redirects Silo named prefix ^/idea-\\d{1,3}-(.+)$ with 301', () => {

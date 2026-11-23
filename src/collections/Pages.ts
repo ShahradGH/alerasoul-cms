@@ -1,4 +1,5 @@
 import type { CollectionConfig } from 'payload'
+import { collectPagePurgePaths, purgeEdgeCachePaths, type CacheablePageDoc } from '../lib/edge-cache'
 import { assertZeroLeakContent, sanitizePublicSlug } from '../lib/zero-leak'
 
 export const Pages: CollectionConfig = {
@@ -36,6 +37,43 @@ export const Pages: CollectionConfig = {
           metaDescription: data.seo?.metaDescription,
         })
         return data
+      },
+    ],
+    afterChange: [
+      async ({ doc, previousDoc }) => {
+        try {
+          const paths = collectPagePurgePaths([
+            doc as CacheablePageDoc,
+            previousDoc as CacheablePageDoc | undefined,
+          ])
+          await purgeEdgeCachePaths(paths)
+        } catch (err) {
+          console.warn(
+            JSON.stringify({
+              level: 'warn',
+              msg: 'Page afterChange edge cache purge failed',
+              error: err instanceof Error ? err.message : String(err),
+            }),
+          )
+        }
+        return doc
+      },
+    ],
+    afterDelete: [
+      async ({ doc }) => {
+        try {
+          const paths = collectPagePurgePaths([doc as CacheablePageDoc])
+          await purgeEdgeCachePaths(paths)
+        } catch (err) {
+          console.warn(
+            JSON.stringify({
+              level: 'warn',
+              msg: 'Page afterDelete edge cache purge failed',
+              error: err instanceof Error ? err.message : String(err),
+            }),
+          )
+        }
+        return doc
       },
     ],
   },

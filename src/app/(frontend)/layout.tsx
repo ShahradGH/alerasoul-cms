@@ -6,6 +6,7 @@ import { SiteFooter } from '@/components/SiteFooter'
 import { ThemeAndEnhancements } from '@/components/ThemeAndEnhancements'
 
 export const metadata: Metadata = {
+  metadataBase: new URL((process.env.NEXT_PUBLIC_SITE_URL || 'https://alerasoul.net').replace(/\/$/, '')),
   title: {
     default: 'Shahrad Alerasoul — Sovereign Cloud & Enterprise Architecture',
     template: '%s | Shahrad Alerasoul',

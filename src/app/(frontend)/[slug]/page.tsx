@@ -6,11 +6,22 @@ import type { Metadata } from 'next'
 import React from 'react'
 import { formatUtcEditorialDate, resolveMediaPublicUrl, type MediaLike } from '@/lib/media-url'
 import { renderLexicalToHtml } from '@/lib/lexical-render'
+import { slugifyTag } from '@/lib/tags'
 import { computeReadingMetrics } from '@/lib/zero-leak'
 import { ShareAndAuthor } from '@/components/ShareAndAuthor'
 import type { Category } from '@/payload-types'
 
 export const dynamic = 'force-dynamic'
+
+function getSiteUrl(): string {
+  return (process.env.NEXT_PUBLIC_SITE_URL || 'https://alerasoul.net').replace(/\/$/, '')
+}
+
+function toAbsoluteUrl(pathOrUrl: string | null | undefined, siteUrl: string): string | undefined {
+  if (!pathOrUrl) return undefined
+  if (/^https?:\/\//i.test(pathOrUrl)) return pathOrUrl
+  return `${siteUrl}${pathOrUrl.startsWith('/') ? pathOrUrl : `/${pathOrUrl}`}`
+}
 
 export async function generateMetadata({
   params,
@@ -19,6 +30,7 @@ export async function generateMetadata({
 }): Promise<Metadata> {
   const { slug } = await params
   const payload = await getPayload({ config: configPromise })
+  const siteUrl = getSiteUrl()
 
   const postRes = await payload.find({
     collection: 'posts',
@@ -28,9 +40,34 @@ export async function generateMetadata({
   })
   const post = postRes.docs[0]
   if (post) {
+    const title = post.seo?.metaTitle || post.title
+    const description = post.seo?.metaDescription || post.excerpt || undefined
+    const canonicalUrl = `${siteUrl}/${post.slug}/`
+    const featuredUrl = resolveMediaPublicUrl(post.featuredImage as MediaLike | null)
+    const featuredAbsUrl = toAbsoluteUrl(featuredUrl, siteUrl)
+
     return {
-      title: post.seo?.metaTitle || post.title,
-      description: post.seo?.metaDescription || post.excerpt || undefined,
+      title,
+      description,
+      alternates: {
+        canonical: canonicalUrl,
+      },
+      openGraph: {
+        title,
+        description,
+        url: canonicalUrl,
+        type: 'article',
+        publishedTime: post.publishedAt || post.createdAt || undefined,
+        modifiedTime: post.updatedAt || undefined,
+        authors: ['Shahrad Alerasoul'],
+        ...(featuredAbsUrl ? { images: [{ url: featuredAbsUrl, alt: title }] } : {}),
+      },
+      twitter: {
+        card: featuredAbsUrl ? 'summary_large_image' : 'summary',
+        title,
+        description,
+        ...(featuredAbsUrl ? { images: [featuredAbsUrl] } : {}),
+      },
     }
   }
 
@@ -41,9 +78,26 @@ export async function generateMetadata({
   })
   const pg = pageRes.docs[0]
   if (pg) {
+    const title = pg.seo?.metaTitle || pg.title
+    const description = pg.seo?.metaDescription || undefined
+    const canonicalUrl = `${siteUrl}/${pg.slug}/`
     return {
-      title: pg.seo?.metaTitle || pg.title,
-      description: pg.seo?.metaDescription || undefined,
+      title,
+      description,
+      alternates: {
+        canonical: canonicalUrl,
+      },
+      openGraph: {
+        title,
+        description,
+        url: canonicalUrl,
+        type: 'website',
+      },
+      twitter: {
+        card: 'summary',
+        title,
+        description,
+      },
     }
   }
 
@@ -57,7 +111,7 @@ export default async function SlugPage({
 }) {
   const { slug } = await params
   const payload = await getPayload({ config: configPromise })
-  const siteUrl = (process.env.NEXT_PUBLIC_SITE_URL || 'https://alerasoul.net').replace(/\/$/, '')
+  const siteUrl = getSiteUrl()
 
   // 1. Check Published Posts (/%postname%/)
   const postRes = await payload.find({
@@ -78,6 +132,9 @@ export default async function SlugPage({
     const featuredUrl = resolveMediaPublicUrl(post.featuredImage as MediaLike | null)
     const categories = Array.isArray(post.categories)
       ? post.categories.filter((c): c is Category => typeof c === 'object' && c !== null)
+      : []
+    const tags = Array.isArray(post.tags)
+      ? post.tags.filter((t): t is { tag: string; id?: string | null } => Boolean(t?.tag && slugifyTag(t.tag)))
       : []
 
     const canonicalUrl = `${siteUrl}/${post.slug}/`
@@ -131,6 +188,19 @@ export default async function SlugPage({
               {finalReadingMins} min read ({wordCount.toLocaleString('en-GB')} words)
             </span>
           </div>
+          {tags.length > 0 && (
+            <div className="sov-tag-list" aria-label="Article Tags">
+              {tags.map((item, idx) => (
+                <Link
+                  key={item.id || `${slugifyTag(item.tag)}-${idx}`}
+                  href={`/tag/${slugifyTag(item.tag)}/`}
+                  className="sov-tag-pill"
+                >
+                  #{item.tag}
+                </Link>
+              ))}
+            </div>
+          )}
         </header>
 
         {featuredUrl && !htmlBody.includes(featuredUrl) && (

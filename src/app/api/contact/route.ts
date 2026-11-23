@@ -1,7 +1,17 @@
 import configPromise from '@payload-config'
 import { getPayload } from 'payload'
 import { getCloudflareContext } from '@opennextjs/cloudflare'
+import { sendContactDiscordAlert, sendContactNotificationEmail } from '@/lib/email'
 import { verifyTurnstileToken } from '@/lib/turnstile'
+
+async function resolveOptionalBindings(): Promise<Partial<CloudflareEnv>> {
+  try {
+    const cf = await getCloudflareContext({ async: true })
+    return (cf?.env as Partial<CloudflareEnv>) || {}
+  } catch {
+    return {}
+  }
+}
 
 export async function POST(request: Request) {
   let body: Record<string, unknown>
@@ -24,15 +34,8 @@ export async function POST(request: Request) {
     )
   }
 
-  let secret = process.env.TURNSTILE_SECRET_KEY || ''
-  if (!secret) {
-    try {
-      const cf = await getCloudflareContext({ async: true })
-      secret = cf?.env?.TURNSTILE_SECRET_KEY || ''
-    } catch {
-      secret = ''
-    }
-  }
+  const cfEnv = await resolveOptionalBindings()
+  const secret = (process.env.TURNSTILE_SECRET_KEY || cfEnv.TURNSTILE_SECRET_KEY || '').trim()
 
   const remoteIp =
     request.headers.get('cf-connecting-ip') ||
@@ -56,6 +59,9 @@ export async function POST(request: Request) {
     )
   }
 
+  const submittedAt = new Date().toISOString()
+  const resolvedSubject = subject || 'Website Inquiry'
+
   const payload = await getPayload({ config: configPromise })
   const created = await payload.create({
     collection: 'contact-submissions',
@@ -63,18 +69,48 @@ export async function POST(request: Request) {
     data: {
       name,
       email,
-      subject: subject || 'Website Inquiry',
+      subject: resolvedSubject,
       message,
       turnstileVerified: true,
-      submittedAt: new Date().toISOString(),
+      submittedAt,
     },
   })
+
+  const discordWebhookUrl = (process.env.DISCORD_WEBHOOK_OPS_DIGEST || cfEnv.DISCORD_WEBHOOK_OPS_DIGEST || '').trim()
+  const resendApiKey = (process.env.RESEND_API_KEY || cfEnv.RESEND_API_KEY || '').trim()
+  const contactFromEmail = (process.env.CONTACT_FROM_EMAIL || cfEnv.CONTACT_FROM_EMAIL || '').trim()
+  const contactToEmail = (process.env.CONTACT_TO_EMAIL || cfEnv.CONTACT_TO_EMAIL || '').trim()
+
+  const submissionPayload = {
+    id: created.id,
+    name,
+    email,
+    subject: resolvedSubject,
+    message,
+    submittedAt,
+  }
+
+  const [discordOutcome, emailOutcome] = await Promise.allSettled([
+    sendContactDiscordAlert(submissionPayload, { webhookUrl: discordWebhookUrl }),
+    sendContactNotificationEmail(submissionPayload, {
+      apiKey: resendApiKey,
+      fromEmail: contactFromEmail || undefined,
+      toEmail: contactToEmail || undefined,
+    }),
+  ])
+
+  const discordNotified = discordOutcome.status === 'fulfilled' && discordOutcome.value.sent === true
+  const emailNotified = emailOutcome.status === 'fulfilled' && emailOutcome.value.sent === true
 
   return Response.json(
     {
       ok: true,
       id: created.id,
       turnstileVerified: true,
+      notified: {
+        discord: discordNotified,
+        email: emailNotified,
+      },
     },
     { status: 201 },
   )

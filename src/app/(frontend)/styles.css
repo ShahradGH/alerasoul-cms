@@ -171,6 +171,82 @@ a:hover {
   margin-bottom: 28px;
 }
 
+.sov-search-bar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-bottom: 18px;
+}
+
+.sov-search-bar input[type='search'] {
+  flex: 1;
+  min-width: 240px;
+  padding: 10px 14px;
+  border-radius: 8px;
+  border: 1px solid var(--sov-border);
+  background: var(--sov-surface);
+  color: var(--sov-text);
+  font-family: inherit;
+  font-size: 0.94rem;
+}
+
+.sov-search-bar input[type='search']:focus {
+  outline: 2px solid var(--sov-cyan);
+  border-color: var(--sov-cyan);
+}
+
+.sov-search-btn {
+  background: var(--sov-cyan);
+  color: #0a1128;
+  font-weight: 700;
+  font-size: 0.9rem;
+  padding: 10px 18px;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+.sov-search-btn:hover {
+  background: var(--sov-sky);
+}
+
+.sov-tag-list {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin: 0 0 14px 0;
+}
+
+.sov-tag-pill {
+  background: var(--sov-surface-elevated);
+  color: var(--sov-text-muted);
+  border: 1px solid var(--sov-border);
+  border-radius: 999px;
+  padding: 3px 10px;
+  font-size: 0.76rem;
+  font-weight: 600;
+  transition: all 0.2s ease;
+}
+
+.sov-tag-pill:hover {
+  color: var(--sov-cyan);
+  border-color: var(--sov-cyan);
+  background: var(--sov-accent-light);
+}
+
+.sov-media-figure {
+  margin: 24px 0;
+  text-align: center;
+}
+
+.sov-media-figure figcaption {
+  margin-top: 8px;
+  font-size: 0.85rem;
+  color: var(--sov-text-muted);
+}
+
 .sov-pill {
   padding: 7px 14px;
   border-radius: 999px;

@@ -2,7 +2,7 @@
  * Edge Middleware Policy Engine (replaces Caddyfile rules for alerasoul.net).
  * Handles:
  *  - Canonical www -> apex 301 redirect
- *  - Silo Endeavours legacy prefix 301 redirects (^/00[1-9]-(.+)$ and ^/idea-\d{1,3}-(.+)$)
+ *  - Silo Endeavours legacy prefix 301 redirects (^/0\d{2}-(.+)$ and ^/idea-\d{1,3}-(.+)$)
  *  - Sensitive WordPress artefact blocking (403)
  *  - Legacy /wp-content/uploads/* serving directly from Cloudflare R2
  */
@@ -29,7 +29,7 @@ const BLOCKED_WP_PATHS = new Set([
   '/license.txt',
 ])
 
-const SILO_NUMERIC_RE = /^\/00[1-9]-(.+)$/
+const SILO_NUMERIC_RE = /^\/0\d{2}-(.+)$/
 const SILO_NAMED_RE = /^\/idea-\d{1,3}-(.+)$/i
 
 const EXTENSION_MIME: Record<string, string> = {

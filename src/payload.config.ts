@@ -14,6 +14,7 @@ import { Categories } from './collections/Categories'
 import { Posts } from './collections/Posts'
 import { Pages } from './collections/Pages'
 import { ContactSubmissions } from './collections/ContactSubmissions'
+import { resendEmailAdapter } from './lib/email'
 
 const filename = fileURLToPath(import.meta.url)
 const dirname = path.dirname(filename)
@@ -69,6 +70,7 @@ export default buildConfig({
   },
   collections: [Users, Media, Categories, Posts, Pages, ContactSubmissions],
   editor: lexicalEditor(),
+  email: resendEmailAdapter,
   secret: process.env.PAYLOAD_SECRET || '',
   typescript: {
     outputFile: path.resolve(dirname, 'payload-types.ts'),

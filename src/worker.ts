@@ -6,31 +6,65 @@ export { DOQueueHandler, DOShardedTagCache, BucketCachePurge } from '../.open-ne
 
 import { applySecurityHeaders, handleEdgeRequest } from './lib/edge-middleware'
 import { promoteScheduledPosts } from './lib/cron-publisher'
+import {
+  buildEdgeCacheKey,
+  CANONICAL_CATEGORY_SLUGS,
+  collectPostPurgePaths,
+  getDefaultEdgeCache,
+  isCacheableEdgeContentType,
+  isPublicEdgeCacheCandidate,
+  purgeEdgeCachePaths,
+} from './lib/edge-cache'
+import { slugifyTag } from './lib/tags'
 
-function isPublicHtmlCacheCandidate(request: Request): boolean {
-  if (request.method !== 'GET') return false
-  if (request.headers.has('rsc') || request.headers.has('next-router-prefetch')) return false
-  const cookie = request.headers.get('cookie') || ''
-  if (cookie.includes('payload-token')) return false
+async function collectScheduledPurgePaths(db: D1Database, promotedSlugs: string[]): Promise<string[]> {
+  const catSlugs = new Set<string>(CANONICAL_CATEGORY_SLUGS)
+  const tagSlugs = new Set<string>()
 
-  const url = new URL(request.url)
-  if (url.searchParams.has('preview')) return false
-  const p = url.pathname.toLowerCase()
-  if (p.startsWith('/admin') || p.startsWith('/api') || p.startsWith('/_next') || p.startsWith('/wp-content')) {
-    return false
-  }
-  return true
-}
-
-function getDefaultEdgeCache(): Cache | null {
   try {
-    if (typeof caches !== 'undefined' && caches && 'default' in caches) {
-      return (caches as unknown as { default: Cache }).default
+    if (promotedSlugs.length > 0) {
+      const placeholders = promotedSlugs.map((_, idx) => `?${idx + 1}`).join(', ')
+      const catRows = await db
+        .prepare(
+          `SELECT DISTINCT c.slug FROM categories c
+           INNER JOIN posts_rels pr ON pr.categories_id = c.id
+           INNER JOIN posts p ON p.id = pr.parent_id
+           WHERE p.slug IN (${placeholders})`,
+        )
+        .bind(...promotedSlugs)
+        .all<{ slug: string }>()
+      for (const row of catRows?.results ?? []) {
+        if (row.slug) catSlugs.add(row.slug)
+      }
+
+      const tagRows = await db
+        .prepare(
+          `SELECT DISTINCT pt.tag FROM posts_tags pt
+           INNER JOIN posts p ON p.id = pt._parent_id
+           WHERE p.slug IN (${placeholders})`,
+        )
+        .bind(...promotedSlugs)
+        .all<{ tag: string }>()
+      for (const row of tagRows?.results ?? []) {
+        const s = slugifyTag(row.tag)
+        if (s) tagSlugs.add(s)
+      }
     }
-  } catch {
-    // Non-Worker test runtime
+  } catch (err) {
+    console.warn(
+      JSON.stringify({
+        level: 'warn',
+        msg: 'Failed collecting promoted post taxonomy slugs for cache purge',
+        error: err instanceof Error ? err.message : String(err),
+      }),
+    )
   }
-  return null
+
+  return collectPostPurgePaths(
+    promotedSlugs.map((slug) => ({ slug })),
+    Array.from(catSlugs),
+    Array.from(tagSlugs),
+  )
 }
 
 const workerHandler = {
@@ -40,9 +74,9 @@ const workerHandler = {
       return applySecurityHeaders(edgeResp)
     }
 
-    const canCache = isPublicHtmlCacheCandidate(request)
+    const canCache = isPublicEdgeCacheCandidate(request)
     const edgeCache = canCache ? getDefaultEdgeCache() : null
-    const cacheKey = canCache ? new Request(request.url, { method: 'GET' }) : null
+    const cacheKey = canCache ? buildEdgeCacheKey(request.url) : null
 
     if (edgeCache && cacheKey) {
       const cached = await edgeCache.match(cacheKey)
@@ -61,11 +95,20 @@ const workerHandler = {
 
     const rawResponse = await openNextHandler.fetch(request, env, ctx)
     const secured = applySecurityHeaders(rawResponse)
-    const ct = (secured.headers.get('content-type') || '').toLowerCase()
+    const ct = secured.headers.get('content-type') || ''
 
-    if (edgeCache && cacheKey && secured.status === 200 && ct.includes('text/html') && !secured.headers.has('set-cookie')) {
+    if (
+      edgeCache &&
+      cacheKey &&
+      secured.status === 200 &&
+      isCacheableEdgeContentType(ct) &&
+      !secured.headers.has('set-cookie')
+    ) {
       const headers = new Headers(secured.headers)
-      headers.set('Cache-Control', 'public, max-age=60, s-maxage=300, stale-while-revalidate=3600')
+      const currentCc = (headers.get('Cache-Control') || '').toLowerCase()
+      if (!currentCc || currentCc.includes('private') || currentCc.includes('no-store') || ct.toLowerCase().includes('text/html')) {
+        headers.set('Cache-Control', 'public, max-age=60, s-maxage=300, stale-while-revalidate=3600')
+      }
       headers.set('X-Sovereign-Edge-Cache', 'MISS')
       const cacheable = new Response(secured.body, {
         status: secured.status,
@@ -81,9 +124,20 @@ const workerHandler = {
 
   async scheduled(_controller: ScheduledController, env: CloudflareEnv, ctx: ExecutionContext): Promise<void> {
     ctx.waitUntil(
-      promoteScheduledPosts(env.D1).then((res) => {
+      promoteScheduledPosts(env.D1).then(async (res) => {
         if (res.promotedCount > 0) {
-          console.log(JSON.stringify({ level: 'info', msg: 'Promoted scheduled posts', ...res }))
+          const paths = await collectScheduledPurgePaths(env.D1, res.promotedSlugs)
+          const purgeStats = await purgeEdgeCachePaths(paths, {
+            siteUrl: env.NEXT_PUBLIC_SITE_URL,
+          })
+          console.log(
+            JSON.stringify({
+              level: 'info',
+              msg: 'Promoted scheduled posts and purged edge cache',
+              ...res,
+              ...purgeStats,
+            }),
+          )
         }
       }),
     )
