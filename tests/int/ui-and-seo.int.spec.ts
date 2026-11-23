@@ -142,7 +142,7 @@ describe('SPA Enhancements, Dynamic Sitemap, SEO Metadata, Tag Archive & Search'
     const fallback = await sitemap()
     expect(fallback.map((e) => e.url)).toEqual([
       'https://alerasoul.net/',
-      'https://alerasoul.net/contact/',
+      'https://alerasoul.net/contact',
     ])
 
     navMocks.getPayloadMock.mockResolvedValueOnce({
@@ -170,10 +170,10 @@ describe('SPA Enhancements, Dynamic Sitemap, SEO Metadata, Tag Archive & Search'
 
     const full = await sitemap()
     const urls = full.map((e) => e.url)
-    expect(urls).toContain('https://alerasoul.net/resilient-hub/')
-    expect(urls).toContain('https://alerasoul.net/about/')
-    expect(urls).toContain('https://alerasoul.net/category/enterprise-architecture/')
-    expect(urls).toContain('https://alerasoul.net/tag/azure/')
+    expect(urls).toContain('https://alerasoul.net/resilient-hub')
+    expect(urls).toContain('https://alerasoul.net/about')
+    expect(urls).toContain('https://alerasoul.net/category/enterprise-architecture')
+    expect(urls).toContain('https://alerasoul.net/tag/azure')
   })
 
   it('supports search query filtering in HomePage and tag resolution in TagArchivePage', async () => {

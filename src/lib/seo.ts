@@ -49,7 +49,7 @@ export function buildSitemapEntries({
       priority: 1.0,
     },
     {
-      url: `${cleanSiteUrl}/contact/`,
+      url: `${cleanSiteUrl}/contact`,
       changeFrequency: 'monthly',
       priority: 0.6,
     },
@@ -59,7 +59,7 @@ export function buildSitemapEntries({
 
   for (const pg of pages) {
     if (!pg?.slug) continue
-    const url = `${cleanSiteUrl}/${pg.slug}/`
+    const url = `${cleanSiteUrl}/${pg.slug}`
     if (seenUrls.has(url)) continue
     seenUrls.add(url)
     entries.push({
@@ -72,7 +72,7 @@ export function buildSitemapEntries({
 
   for (const cat of categories) {
     if (!cat?.slug) continue
-    const url = `${cleanSiteUrl}/category/${cat.slug}/`
+    const url = `${cleanSiteUrl}/category/${cat.slug}`
     if (seenUrls.has(url)) continue
     seenUrls.add(url)
     entries.push({
@@ -85,7 +85,7 @@ export function buildSitemapEntries({
 
   for (const post of posts) {
     if (!post?.slug) continue
-    const url = `${cleanSiteUrl}/${post.slug}/`
+    const url = `${cleanSiteUrl}/${post.slug}`
     if (seenUrls.has(url)) continue
     seenUrls.add(url)
     entries.push({
@@ -99,7 +99,7 @@ export function buildSitemapEntries({
   for (const rawTag of tags) {
     const tagSlug = slugifyTag(rawTag)
     if (!tagSlug) continue
-    const url = `${cleanSiteUrl}/tag/${tagSlug}/`
+    const url = `${cleanSiteUrl}/tag/${tagSlug}`
     if (seenUrls.has(url)) continue
     seenUrls.add(url)
     entries.push({

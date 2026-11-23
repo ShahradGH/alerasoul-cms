@@ -96,18 +96,21 @@ const workerHandler = {
     const rawResponse = await openNextHandler.fetch(request, env, ctx)
     const secured = applySecurityHeaders(rawResponse)
     const ct = secured.headers.get('content-type') || ''
-
-    if (
-      edgeCache &&
-      cacheKey &&
+    const isCacheableRedirect = secured.status === 308 && !secured.headers.has('set-cookie')
+    const isCacheableOk =
       secured.status === 200 &&
       isCacheableEdgeContentType(ct) &&
       !secured.headers.has('set-cookie')
-    ) {
+
+    if (edgeCache && cacheKey && (isCacheableOk || isCacheableRedirect)) {
       const headers = new Headers(secured.headers)
-      const currentCc = (headers.get('Cache-Control') || '').toLowerCase()
-      if (!currentCc || currentCc.includes('private') || currentCc.includes('no-store') || ct.toLowerCase().includes('text/html')) {
-        headers.set('Cache-Control', 'public, max-age=60, s-maxage=300, stale-while-revalidate=3600')
+      if (isCacheableRedirect) {
+        headers.set('Cache-Control', 'public, max-age=300, s-maxage=3600, stale-while-revalidate=86400')
+      } else {
+        const currentCc = (headers.get('Cache-Control') || '').toLowerCase()
+        if (!currentCc || currentCc.includes('private') || currentCc.includes('no-store') || ct.toLowerCase().includes('text/html')) {
+          headers.set('Cache-Control', 'public, max-age=60, s-maxage=300, stale-while-revalidate=3600')
+        }
       }
       headers.set('X-Sovereign-Edge-Cache', 'MISS')
       const cacheable = new Response(secured.body, {
